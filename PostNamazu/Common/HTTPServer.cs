@@ -80,7 +80,7 @@ namespace PostNamazu.Models
                                 GetAction(context.Request.Url.AbsolutePath)(ref context);
                             }
                             catch (Exception ex) {
-                                MessageBox.Show(ex.Message);
+                                Logger.Log(ex.Message);
                                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                             }
                             finally {
