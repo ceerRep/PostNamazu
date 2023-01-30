@@ -179,11 +179,7 @@ namespace PostNamazu
 
         #region TextCommand
 
-        /// <summary>
-        ///     在游戏进程中执行给出的指令
-        /// </summary>
-        /// <param name="command">需要执行的指令</param>
-        public void DoTextCommand(string command)
+        public void DoBytesCommand(byte[] command)
         {
             if (FFXIV == null)
             {
@@ -191,8 +187,8 @@ namespace PostNamazu
                 throw new Exception("没有对应的游戏进程");
             }
 
-            Logger.Log(command);
-            if (command == "")
+            Logger.Log(Encoding.UTF8.GetString(command));
+            if (command.Length == 0)
                 throw new Exception("指令为空");
 
             var assemblyLock = Memory.Executor.AssemblyLock;
@@ -200,19 +196,17 @@ namespace PostNamazu
             var flag = false;
             try
             {
-                Monitor.Enter(assemblyLock, ref flag);
-                var array = Encoding.UTF8.GetBytes(command);
-                using (AllocatedMemory allocatedMemory = Memory.CreateAllocatedMemory(400), allocatedMemory2 = Memory.CreateAllocatedMemory(array.Length + 30))
+                using (AllocatedMemory allocatedMemory = Memory.CreateAllocatedMemory(400), allocatedMemory2 = Memory.CreateAllocatedMemory(command.Length + 30))
                 {
-                    allocatedMemory2.AllocateOfChunk("cmd", array.Length);
-                    allocatedMemory2.WriteBytes("cmd", array);
+                    allocatedMemory2.AllocateOfChunk("cmd", command.Length);
+                    allocatedMemory2.WriteBytes("cmd", command);
                     allocatedMemory.AllocateOfChunk<IntPtr>("cmdAddress");
                     allocatedMemory.AllocateOfChunk<long>("t1");
                     allocatedMemory.AllocateOfChunk<long>("tLength");
                     allocatedMemory.AllocateOfChunk<long>("t3");
                     allocatedMemory.Write("cmdAddress", allocatedMemory2.Address);
                     allocatedMemory.Write("t1", 0x40);
-                    allocatedMemory.Write("tLength", array.Length + 1);
+                    allocatedMemory.Write("tLength", command.Length + 1);
                     allocatedMemory.Write("t3", 0x00);
                     _ = Memory.CallInjected64<int>(Offsets.ProcessChatBoxPtr, Offsets.RaptureModule,
                         allocatedMemory.Address, Offsets.UiModule);
@@ -222,6 +216,15 @@ namespace PostNamazu
             {
                 if (flag) Monitor.Exit(assemblyLock);
             }
+        }
+
+        /// <summary>
+        ///     在游戏进程中执行给出的指令
+        /// </summary>
+        /// <param name="command">需要执行的指令</param>
+        public void DoTextCommand(string command)
+        {
+            DoBytesCommand(Encoding.UTF8.GetBytes(command));
         }
 
         public void DoTextCommand(object _, string command)
